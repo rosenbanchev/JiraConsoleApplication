@@ -18,6 +18,9 @@ import java.util.Scanner;
 @SpringBootApplication
 public class JiraConsoleApplication implements CommandLineRunner {
 
+    private static final String XML_FORMAT = "1";
+    private static final String GSON_FORMAT = "2";
+
     private static Logger LOG = LoggerFactory
             .getLogger(JiraConsoleApplication.class);
 
@@ -36,25 +39,29 @@ public class JiraConsoleApplication implements CommandLineRunner {
         LOG.info("EXECUTING : command line runner");
 
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Please choose the wanted format (1 - XML, 2 - JSON): ");
+        System.out.println("Choose one of the options:");
+        System.out.println("1 to create a XML file!");
+        System.out.println("2 to create a JSON file!");
+        System.out.print("Please choose the wanted format: ");
         String chosenFormat = scanner.next();
-        System.out.println(chosenFormat);
 
         List<JsonNode> jiraDataList = jiraService.getJiraDataList();
-        System.out.println(jiraDataList);
         Date date = new Date();
-        Format dateFormatter = new SimpleDateFormat("YYYY-MM-dd_hh-mm-ss");
+        Format dateFormatter = new SimpleDateFormat("MM-dd-yyyy_hh-mm-ss");
 
-        if ("1".equals(chosenFormat)) {
-            System.out.println("Chosen format is XML!");
-            jiraService.createXmlFile(jiraDataList, date, dateFormatter);
-            System.out.println("The XML file is created!");
-        } else if ("2".equals(chosenFormat)) {
-            System.out.println("Chosen format is JSON!");
-            jiraService.createJsonFile(jiraDataList, date, dateFormatter);
-            System.out.println("The JSON file is created!");
-        } else {
-            System.out.println("The format is incorrect!");
+        switch (chosenFormat) {
+            case XML_FORMAT:
+                System.out.println("Chosen format is XML!");
+                jiraService.createXmlFile(jiraDataList, date, dateFormatter);
+                System.out.println("The XML file is created!");
+                break;
+            case GSON_FORMAT:
+                System.out.println("Chosen format is JSON!");
+                jiraService.createJsonFile(jiraDataList, date, dateFormatter);
+                System.out.println("The JSON file is created!");
+                break;
+            default:
+                System.out.println("The format is incorrect!");
         }
 
 
