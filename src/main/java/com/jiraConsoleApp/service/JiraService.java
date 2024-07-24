@@ -1,6 +1,6 @@
 package com.jiraConsoleApp.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.jiraConsoleApp.model.JiraIssueModel;
 
 import java.io.IOException;
 import java.text.Format;
@@ -8,9 +8,10 @@ import java.util.Date;
 import java.util.List;
 
 public interface JiraService {
-    List<JsonNode> getJiraDataList() throws Exception;
 
-    void createXmlFile(List<JsonNode> jiraDataList, Date date, Format dateFormatter) throws IOException;
+    List<JiraIssueModel> getJiraDataModelList() throws Exception;
 
-    void createJsonFile(List<JsonNode> jiraDataList, Date date, Format dateFormatter) throws IOException;
+    void createXmlFile(List<JiraIssueModel> jiraIssueModelList, Date date, Format dateFormatter) throws IOException;
+
+    void createJsonFile(List<JiraIssueModel> jiraIssueModelList, Date date, Format dateFormatter) throws IOException;
 }

@@ -1,9 +1,11 @@
 package com.jiraConsoleApp.service.serviceImpl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.jiraConsoleApp.model.JiraCommentModel;
+import com.jiraConsoleApp.model.JiraIssueModel;
 import com.jiraConsoleApp.service.JiraService;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -13,6 +15,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.springframework.stereotype.Component;
 
+import java.beans.XMLEncoder;
+import java.io.ByteArrayOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.Format;
@@ -23,7 +27,7 @@ import java.util.List;
 @Component
 public class JiraServiceImpl implements JiraService {
     @Override
-    public List<JsonNode> getJiraDataList() throws Exception {
+    public List<JiraIssueModel> getJiraDataModelList() throws Exception {
         Client client = ClientBuilder.newClient();
         WebTarget jiraUrl = client.target("https://jira.atlassian.com/rest/api/latest/search?jql=issuetype%20in%20(Bug,%20Documentation,%20Enhancement)%20and%20updated%20%3E%20startOfWeek()&fields=key,summary,iconUrl,issuetype,priority,description,reporter,created,description,displayName,status,creator");
 
@@ -31,46 +35,55 @@ public class JiraServiceImpl implements JiraService {
         jiraRequest.accept(MediaType.APPLICATION_JSON);
 
         Response jiraResponseData = jiraRequest.get();
-        return transformDataToJsonObjList(jiraResponseData);
+        return setResponseToJiraList(jiraResponseData);
     }
-
-    private List<JsonNode> transformDataToJsonObjList(Response response) throws Exception {
-        List<JsonNode> jsonNodeList = new ArrayList<>();
+    private List<JiraIssueModel> setResponseToJiraList(Response jiraResponseData) throws JsonProcessingException {
+        List<JiraIssueModel> jiraIssueModelList = new ArrayList<>();
         ObjectMapper mapper = new ObjectMapper();
 
-        if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-            String jsonResponse = response.readEntity(String.class);
+        if (jiraResponseData.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
+            String jsonResponse = jiraResponseData.readEntity(String.class);
             JsonNode jsonNode = mapper.readTree(jsonResponse);
             JsonNode issuesNodes = jsonNode.get("issues");
 
             for (JsonNode issueNode : issuesNodes) {
-                ObjectNode transformedNode = mapper.createObjectNode();
-                transformedNode.put("summary", issueNode.get("fields").get("summary").asText());
-                transformedNode.put("key", issueNode.get("key").asText());
-                transformedNode.put("iconUrl", issueNode.get("fields").get("issuetype").get("iconUrl").asText());
-                transformedNode.put("issuetype", issueNode.get("fields").get("issuetype").get("name").asText());
-                transformedNode.put("priority", issueNode.get("fields").get("priority").get("id").asText());
-                transformedNode.put("description", issueNode.get("fields").get("issuetype").get("description").asText());
-                transformedNode.put("reporter", issueNode.get("fields").get("reporter").get("displayName").asText());
-                transformedNode.put("created", issueNode.get("fields").get("created").asText());
+                JiraIssueModel jiraIssueModel = new JiraIssueModel();
+                jiraIssueModel.setSummary(issueNode.get("fields").get("summary").asText());
+                jiraIssueModel.setKey(issueNode.get("key").asText());
+                jiraIssueModel.setIconUrl(issueNode.get("fields").get("issuetype").get("iconUrl").asText());
+                jiraIssueModel.setIssueType(issueNode.get("fields").get("issuetype").get("name").asText());
+                jiraIssueModel.setPriority(issueNode.get("fields").get("priority").get("id").asText());
+                jiraIssueModel.setDescription(issueNode.get("fields").get("issuetype").get("description").asText());
+                jiraIssueModel.setReporter(issueNode.get("fields").get("reporter").get("displayName").asText());
+                jiraIssueModel.setCreatedDate(issueNode.get("fields").get("created").asText());
 
-                ObjectNode commentNode = mapper.createObjectNode();
-                commentNode.put("id", issueNode.get("fields").get("status").get("description").asText());
-                commentNode.put("description", issueNode.get("fields").get("creator").get("displayName").asText());
-                transformedNode.set("comments", commentNode);
+                // Can't find the comments for any task!!!
+                List<JiraCommentModel> jiraCommentModelList = new ArrayList<>();
+                JiraCommentModel jiraCommentModel = new JiraCommentModel();
+                jiraCommentModel.setAuthor(issueNode.get("fields").get("creator").get("displayName").asText());
+                jiraCommentModel.setText(issueNode.get("fields").get("status").get("description").asText());
 
-                jsonNodeList.add(transformedNode);
+                jiraCommentModelList.add(jiraCommentModel);
+                jiraIssueModel.setComments(jiraCommentModelList);
+                jiraIssueModelList.add(jiraIssueModel);
             }
-        } else {
-            jsonNodeList = null;
+            return jiraIssueModelList;
+        }else {
+            return null;
         }
-        return jsonNodeList;
     }
     @Override
-    public void createXmlFile(List<JsonNode> jiraDataList, Date date, Format dateFormatter) throws IOException {
+    public void createXmlFile(List<JiraIssueModel> jiraIssueModelList, Date date, Format dateFormatter) throws IOException {
         FileWriter file = new FileWriter("D:\\JiraFiles/jiraXmlFile_" + dateFormatter.format(date)+ ".xml");
-        for (JsonNode jsonNode : jiraDataList) {
-            file.write(getXmlString(jsonNode));
+        for (JiraIssueModel jiraIssueModel : jiraIssueModelList) {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            XMLEncoder xmlEncoder = new XMLEncoder(baos);
+            xmlEncoder.writeObject(jiraIssueModel);
+            xmlEncoder.close();
+
+            String xml = baos.toString();
+            System.out.println(xml);
+            file.write(xml);
             file.write('\n');
             file.flush();
         }
@@ -78,19 +91,15 @@ public class JiraServiceImpl implements JiraService {
     }
 
     @Override
-    public void createJsonFile(List<JsonNode> jiraDataList, Date date, Format dateFormatter) throws IOException {
+    public void createJsonFile(List<JiraIssueModel> jiraIssueModelList, Date date, Format dateFormatter) throws IOException {
         FileWriter file = new FileWriter("D:\\JiraFiles/jiraJsonFile_" + dateFormatter.format(date) + ".json");
-        for (JsonNode jsonNode : jiraDataList) {
-            file.write(jsonNode.toString());
+        for (JiraIssueModel jiraIssueModel : jiraIssueModelList) {
+            ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+            String json = ow.writeValueAsString(jiraIssueModel);
+            file.write(json);
             file.write('\n');
             file.flush();
         }
         file.close();
-
-    }
-
-    private static String getXmlString(JsonNode jsonNode) throws IOException {
-        ObjectMapper xmlMapper = new XmlMapper();
-        return xmlMapper.writeValueAsString(jsonNode);
     }
 }

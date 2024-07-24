@@ -1,6 +1,6 @@
 package com.jiraConsoleApp;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.jiraConsoleApp.model.JiraIssueModel;
 import com.jiraConsoleApp.service.JiraService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,26 +45,23 @@ public class JiraConsoleApplication implements CommandLineRunner {
         System.out.print("Please choose the wanted format: ");
         String chosenFormat = scanner.next();
 
-        List<JsonNode> jiraDataList = jiraService.getJiraDataList();
+        List<JiraIssueModel> jiraIssueModelList = jiraService.getJiraDataModelList();
         Date date = new Date();
         Format dateFormatter = new SimpleDateFormat("MM-dd-yyyy_hh-mm-ss");
 
         switch (chosenFormat) {
             case XML_FORMAT:
                 System.out.println("Chosen format is XML!");
-                jiraService.createXmlFile(jiraDataList, date, dateFormatter);
+                jiraService.createXmlFile(jiraIssueModelList, date, dateFormatter);
                 System.out.println("The XML file is created!");
                 break;
             case GSON_FORMAT:
                 System.out.println("Chosen format is JSON!");
-                jiraService.createJsonFile(jiraDataList, date, dateFormatter);
+                jiraService.createJsonFile(jiraIssueModelList, date, dateFormatter);
                 System.out.println("The JSON file is created!");
                 break;
             default:
                 System.out.println("The format is incorrect!");
         }
-
-
     }
-
 }
